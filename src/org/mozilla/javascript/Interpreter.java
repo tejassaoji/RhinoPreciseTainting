@@ -10,6 +10,7 @@ import java.io.PrintStream;
 import java.io.Serializable;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import org.mozilla.javascript.ast.FunctionNode;
 import org.mozilla.javascript.ast.ScriptNode;
@@ -190,6 +191,7 @@ public final class Interpreter extends Icode implements Evaluator
                           String encodedSource,
                           boolean returnFunction)
     {
+        System.err.println("In compile function in Interpreter.java!!!!!");
         CodeGenerator cgen = new CodeGenerator();
         itsData = cgen.compile(compilerEnv, tree, encodedSource, returnFunction);
         return itsData;
@@ -881,7 +883,7 @@ public final class Interpreter extends Icode implements Evaluator
         // throwable holds exception object to rethrow or catch
         // It is also used for continuation restart in which case
         // it holds ContinuationJump
-
+    	System.err.println("in interpretLoop() in SecurityController.java!!");
         final Object DBL_MRK = DOUBLE_MARK;
         final Object undefined = Undefined.instance;
 
@@ -961,6 +963,8 @@ public final class Interpreter extends Icode implements Evaluator
 
                 // Store new frame in cx which is used for error reporting etc.
                 cx.lastInterpreterFrame = frame;
+                
+                boolean taintFlag = false;
 
                 Loop: for (;;) {
 
@@ -971,6 +975,8 @@ public final class Interpreter extends Icode implements Evaluator
                     jumplessRun: {
 
     // Back indent to ease implementation reading
+                    	
+        //System.err.println("In intepreterloop op is " + op);
 switch (op) {
     case Icode_GENERATOR: {
         if (!frame.frozen) {
@@ -1112,12 +1118,20 @@ switch (op) {
         continue Loop;
     }
     case Icode_POP :
+    	//System.err.println("Icode_POP in interpreterloop in interpreter.java");
         stack[stackTop] = null;
         stackTop--;
         continue Loop;
     case Icode_POP_RESULT :
-        frame.result = stack[stackTop];
-        frame.resultDbl = sDbl[stackTop];
+    	if(stack[stackTop] instanceof String || stack[stackTop] instanceof NativeString || stack[stackTop] instanceof ConsString){
+	    	String result = stack[stackTop].toString();
+	    	if (result.contains("_"))
+	    		frame.result = result.substring(0,result.indexOf("_"));
+    	}
+    	else
+    		frame.result = stack[stackTop];
+    	
+    	frame.resultDbl = sDbl[stackTop];
         stack[stackTop] = null;
         --stackTop;
         continue Loop;
@@ -1148,6 +1162,7 @@ switch (op) {
         --stackTop;
         break Loop;
     case Token.RETURN_RESULT :
+    	System.err.println("RETURN_RESULT in interpreterloop in interpreter.java");
         break Loop;
     case Icode_RETUNDEF :
         frame.result = undefined;
@@ -1199,10 +1214,12 @@ switch (op) {
                               !stack_boolean(frame, stackTop));
         continue Loop;
     case Token.BINDNAME :
+    	System.err.println("BINDNAME in interpreterloop in interpreter.java");
         stack[++stackTop] = ScriptRuntime.bind(cx, frame.scope, stringReg);
         continue Loop;
     case Token.STRICT_SETNAME:
     case Token.SETNAME : {
+    	System.err.println("SETNAME in interpreterloop in interpreter.java");
         Object rhs = stack[stackTop];
         if (rhs == DBL_MRK) rhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);
         --stackTop;
@@ -1312,6 +1329,11 @@ switch (op) {
         ++stackTop;
         stack[stackTop] = ScriptRuntime.getNameFunctionAndThis(stringReg,
                                                                cx, frame.scope);
+        
+        //if("taint".equals(stringReg) || "isTainted".equals(stringReg) || "untaint".equals(stringReg) || "taintedRegions".equals(stringReg))
+        //if("taintedRegions".equals(stringReg))
+        	//taintFlag = true;
+        
         ++stackTop;
         stack[stackTop] = ScriptRuntime.lastStoredScriptable(cx);
         continue Loop;
@@ -1535,6 +1557,7 @@ switch (op) {
         stack[++stackTop] = ScriptRuntime.typeofName(frame.scope, stringReg);
         continue Loop;
     case Token.STRING :
+    	//System.err.println("STRING in interpreterloop in interpreter.java");
         stack[++stackTop] = stringReg;
         continue Loop;
     case Icode_SHORTNUMBER :
@@ -1555,7 +1578,19 @@ switch (op) {
         sDbl[stackTop] = frame.idata.itsDoubleTable[indexReg];
         continue Loop;
     case Token.NAME :
-        stack[++stackTop] = ScriptRuntime.name(cx, frame.scope, stringReg);
+    	if(taintFlag){
+    		stack[++stackTop] = stringReg;
+    		taintFlag = false;
+    	}
+    	else{
+    		Object value = ScriptRuntime.name(cx, frame.scope, stringReg);
+    		Object taintVal = ScriptRuntime.name(cx, frame.scope, stringReg+"_taint");
+    		if(value instanceof String || value instanceof NativeString)
+    			stack[++stackTop] = value.toString() + "_" + taintVal.toString();
+    		else
+    			stack[++stackTop] = value;
+    		//stack[++stackTop] = ScriptRuntime.name(cx, frame.scope, stringReg);
+    	}	
         continue Loop;
     case Icode_NAME_INC_DEC :
         stack[++stackTop] = ScriptRuntime.nameIncrDecr(frame.scope, stringReg,
@@ -1833,6 +1868,7 @@ switch (op) {
         }
         continue Loop;
     case Icode_LINE :
+    	//System.err.println("Icode_LINE in interpreterloop in interpreter.java");
         frame.pcSourceLineStart = frame.pc;
         if (frame.debuggerFrame != null) {
             int line = getIndex(iCode, frame.pc);
@@ -1871,9 +1907,11 @@ switch (op) {
         frame.pc += 4;
         continue Loop;
     case Icode_REG_STR_C0:
+    	System.err.println("Icode_REG_STR_C0 in interpreterloop in interpreter.java,  stringReg is :: " + stringReg);
         stringReg = strings[0];
         continue Loop;
     case Icode_REG_STR_C1:
+    	System.err.println("Icode_REG_STR_C1 in interpreterloop in interpreter.java");
         stringReg = strings[1];
         continue Loop;
     case Icode_REG_STR_C2:
@@ -2336,6 +2374,7 @@ switch (op) {
                                 double[] sDbl, int stackTop,
                                 Object[] vars, double[] varDbls,
                                 int[] varAttributes, int indexReg) {
+    	System.err.println("In doSetVar() in Interpreter.java");
         if (!frame.useActivation) {
             if ((varAttributes[indexReg] & ScriptableObject.READONLY) == 0) {
                 vars[indexReg] = stack[stackTop];
@@ -3081,6 +3120,7 @@ switch (op) {
     private static void doAdd(Object[] stack, double[] sDbl, int stackTop,
                               Context cx)
     {
+    	//System.out.println("doAdd!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         Object rhs = stack[stackTop + 1];
         Object lhs = stack[stackTop];
         double d;
@@ -3104,7 +3144,69 @@ switch (op) {
             } else if (lhs instanceof CharSequence || rhs instanceof CharSequence) {
                 CharSequence lstr = ScriptRuntime.toCharSequence(lhs);
                 CharSequence rstr = ScriptRuntime.toCharSequence(rhs);
-                stack[stackTop] = new ConsString(lstr, rstr);
+                
+                String lString = lstr.toString();
+                String rString = rstr.toString();
+                
+                String leftstr = "false";
+                String rightstr = "false";
+                
+                if(lString.contains("_")){
+                	leftstr = lString.split("_")[1];
+                	lString = lString.split("_")[0];
+                }
+                
+                if(rString.contains("_")){
+                	System.out.println("%%%%%#$#$#$#$##$#$ rString : " + rString);
+                	rightstr = rString.split("_")[1];
+                	rString = rString.split("_")[0];
+                }
+                
+                String taintVal = "";
+                if(leftstr.contains("true") || rightstr.contains("true")){
+                	taintVal = "_true";
+                	int len_leftstr = lString.length();
+                	
+                	if(leftstr.contains("true")){
+                		taintVal += "." + leftstr.split("\\.")[1];
+                	}
+                	else{
+                		taintVal += ".";
+                	}
+                	
+                	if(rightstr.contains("true")){
+                		 if(leftstr.contains("true")){
+                			 taintVal += ",";
+                    	 }
+                		
+                		 String pos = (rightstr.split("\\.")[1]);
+                		 
+                		 String[] positions = null;
+                		 
+                		 if(pos.contains(",")){
+                			 positions = pos.split(",");
+                			 for (String pair : positions) {
+                    			 String[] nums = pair.split("-");
+                    			 taintVal += (Integer.parseInt(nums[0]) + len_leftstr) + "-";
+                    			 taintVal += (Integer.parseInt(nums[1]) + len_leftstr) + ",";
+    						 }	
+                			 
+                			 taintVal = taintVal.substring(0,taintVal.length() - 1);
+                		 }	 
+                		 else{
+                			 String[] nums = pos.split("-");
+                			 taintVal += (Integer.parseInt(nums[0]) + len_leftstr) + "-";
+                			 taintVal += (Integer.parseInt(nums[1]) + len_leftstr) + "";
+                		 }
+                		 
+                		 
+                	}
+                }
+                else{
+                	taintVal = "_false";
+                }
+                
+                stack[stackTop] = new ConsString(lString, rString+taintVal);
             } else {
                 double lDbl = (lhs instanceof Number)
                     ? ((Number)lhs).doubleValue() : ScriptRuntime.toNumber(lhs);
@@ -3177,6 +3279,13 @@ switch (op) {
             if (val == UniqueTag.DOUBLE_MARK) {
                 val = ScriptRuntime.wrapNumber(sDbl[shift]);
             }
+//            if(val instanceof String){
+//            	String res = val.toString();
+//            	if(res.contains("_")){
+//            		String arr[] = res.split("_");
+//            		val = arr[0];
+//            	}
+//            }
             args[i] = val;
         }
         return args;

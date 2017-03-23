@@ -151,6 +151,7 @@ public abstract class ScriptableObject implements Scriptable, Serializable,
     {
         private static final long serialVersionUID = -6090581677123995491L;
         String name; // This can change due to caching
+        String taint = "false"; //Added by Tejas Saoji
         int indexOrHash;
         private volatile short attributes;
         transient volatile boolean wasDeleted;
@@ -159,7 +160,8 @@ public abstract class ScriptableObject implements Scriptable, Serializable,
         transient volatile Slot orderedNext; // next in linked list
 
         Slot(String name, int indexOrHash, int attributes)
-        {
+        {	
+        	//System.out.println("name is ::" + name);
             this.name = name;
             this.indexOrHash = indexOrHash;
             this.attributes = (short)attributes;
@@ -173,7 +175,68 @@ public abstract class ScriptableObject implements Scriptable, Serializable,
                 indexOrHash = name.hashCode();
             }
         }
-
+        
+        /*Added by Tejas Saoji*/
+        String getTaint(){
+        	return taint;
+        }
+        
+        String taint(){
+        	if(this.value instanceof String)
+        		this.taint = "true.0-"+(this.value.toString().length() - 1);
+        	return "true";
+        }
+        
+        String taint(Object value){
+        	if(value instanceof String)
+        		this.taint = value.toString();
+        	return "true";
+        }
+        
+        Boolean isTainted(){
+        	if(this.taint!=null && this.taint.contains("true")){
+        		return true;
+        	}
+        	return false;
+        }
+        
+        int[][] taintedRegions(){
+        	int[][] taintedRegions = null;
+        	if(this.taint!=null && this.taint.contains("true")){
+        		 System.out.println(this.name + "'s value: " + this.value + " & taint value: " + this.taint);
+        		 
+        		 String pos = (this.taint.split("\\.")[1]);
+       		 
+	       		 String[] positions = null;
+	       		 
+	       		 if(pos.contains(",")){
+	       			 positions = pos.split(",");
+	       			 taintedRegions = new int[positions.length][2];
+	       			 int i = 0;
+	       			 for (String pair : positions) {
+	           			 String[] nums = pair.split("-");
+	           			 taintedRegions[i][0] = Integer.parseInt(nums[0]);
+	           			 taintedRegions[i++][1] = Integer.parseInt(nums[1]);
+					 }	
+	       		 }	 
+	       		 else{
+	       			 taintedRegions = new int[1][2];
+	       			 String[] nums = pos.split("-");
+	       			 taintedRegions[0][0] = Integer.parseInt(nums[0]);
+           			 taintedRegions[0][1] = Integer.parseInt(nums[1]);
+	       		 }
+        		
+        		 return taintedRegions;
+        	}
+        	return taintedRegions;
+        }
+        
+        public String untaint() {
+        	this.taint = "false";
+			return "true";
+		}
+        /*Tejas Saoji*/
+        
         boolean setValue(Object value, Scriptable owner, Scriptable start) {
             if ((attributes & READONLY) != 0) {
                 Context cx = Context.getContext();
@@ -475,14 +538,71 @@ public abstract class ScriptableObject implements Scriptable, Serializable,
      * @return the value of the property (may be null), or NOT_FOUND
      */
     public Object get(String name, Scriptable start)
+    {	
+    	if(name.contains("_isTainted?")){
+    		String[] arr = name.split("_");
+    		Slot slot = getSlot(arr[0], 0, SLOT_QUERY);
+            if (slot == null) {
+                return Scriptable.NOT_FOUND;
+            }
+            return slot.isTainted();
+    	}
+    	
+    	if(name.contains("_taintedRegions")){
+    		String[] arr = name.split("_");
+    		Slot slot = getSlot(arr[0], 0, SLOT_QUERY);
+            if (slot == null) {
+                return Scriptable.NOT_FOUND;
+            }
+            return slot.taintedRegions();
+    	}
+    	
+    	else if(name.contains("_taint")){
+    		int idx = name.lastIndexOf("_");
+    		String str = name.substring(0,idx);
+    		//String[] arr = name.split("_");
+    		Slot slot = getSlot(str, 0, SLOT_QUERY);
+            if (slot == null) {
+                return Scriptable.NOT_FOUND;
+            }
+            return slot.getTaint();
+    	}
+    	
+        Slot slot = getSlot(name, 0, SLOT_QUERY);
+        if (slot == null) {
+            return Scriptable.NOT_FOUND;
+        }
+        //return slot;
+        // slot.taint();
+        return slot.getValue(start);
+    }
+    
+    /**
+     * Returns the value of the named property or NOT_FOUND.
+     *
+     * If the property was created using defineProperty, the
+     * appropriate getter method is called.
+     *
+     * @param name the name of the property
+     * @param start the object in which the lookup began
+     * @return the value of the property (may be null), or NOT_FOUND
+     * 
+     * 
+     * Tejas Saoji
+     */
+    public Object getSlot(String name, Scriptable start)
     {
         Slot slot = getSlot(name, 0, SLOT_QUERY);
         if (slot == null) {
             return Scriptable.NOT_FOUND;
         }
-        return slot.getValue(start);
+        return slot;
     }
-
+    
+    /*
+     * Tejas Saoji
+     */		
+    
     /**
      * Returns the value of the indexed property or NOT_FOUND.
      *
@@ -2284,7 +2404,38 @@ public abstract class ScriptableObject implements Scriptable, Serializable,
         } while (obj != null);
         return result;
     }
-
+    
+    /**
+     * Gets a named property from an object or any object in its prototype chain.
+     * <p>
+     * Searches the prototype chain for a property named <code>name</code>.
+     * <p>
+     * @param obj a JavaScript object
+     * @param name a property name
+     * @return the value of a property with name <code>name</code> found in
+     *         <code>obj</code> or any object in its prototype chain, or
+     *         <code>Scriptable.NOT_FOUND</code> if not found
+     * @since 1.5R2
+     * 
+     * Tejas Saoji
+     */
+    public static Object getPropertyForTaint(Scriptable obj, String name)
+    {
+        Scriptable start = obj;
+        Object result;
+        do {
+            result = obj.get(name, start);
+            if (result != Scriptable.NOT_FOUND)
+                break;
+            obj = obj.getPrototype();
+        } while (obj != null);
+        return result;
+    }
+    /*
+    * 
+    * Tejas Saoji
+    */
+    
     /**
      * Gets an indexed property from an object or any object in its prototype
      * chain and coerces it to the requested Java type.
@@ -2740,6 +2891,19 @@ public abstract class ScriptableObject implements Scriptable, Serializable,
         } else {
             if (count < 0) checkNotSealed(name, index);
             slot = getSlot(name, index, SLOT_MODIFY);
+        }
+        
+        if(value instanceof String && "taint".equals(value)){
+        	 slot.taint();
+        	 return true;
+        }
+        if(value instanceof String && value.toString().contains("true")){
+        	 slot.taint(value);
+        	 return true;
+        }
+        else if(value instanceof String && "untaint".equals(value)){
+        	 slot.untaint();
+        	 return true;
         }
         return slot.setValue(value, this, start);
     }

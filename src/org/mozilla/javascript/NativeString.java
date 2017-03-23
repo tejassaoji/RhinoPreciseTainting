@@ -262,6 +262,13 @@ final class NativeString extends IdScriptableObject
                 case Id_charCodeAt: {
                     // See ECMA 15.5.4.[4,5]
                     CharSequence target = ScriptRuntime.toCharSequence(thisObj);
+                    String str = target.toString();
+                    
+                    if(str.contains("_"))
+                    	str = str.split("_")[0];
+                    
+                    target = ScriptRuntime.toCharSequence(str);
+                    
                     double pos = ScriptRuntime.toInteger(args, 0);
                     if (pos < 0 || pos >= target.length()) {
                         if (id == Id_charAt) return "";
@@ -409,6 +416,13 @@ final class NativeString extends IdScriptableObject
                 }
                 case Id_trim: {
                     String str = ScriptRuntime.toString(requireObjectCoercible(cx, thisObj, f));
+                    String taintVal = "";
+                    
+                    if(str.contains("_")){
+                    	taintVal = "_" + str.split("_")[1];
+                    	str = str.split("_")[0];
+                    }
+                    
                     char[] chars = str.toCharArray();
 
                     int start = 0;
@@ -420,10 +434,18 @@ final class NativeString extends IdScriptableObject
                         end--;
                     }
 
-                    return str.substring(start, end);
+                    return str.substring(start, end)+taintVal;
                 }
                 case Id_trimLeft: {
                     String str = ScriptRuntime.toString(thisObj);
+                    
+                    String taintVal = "";                  
+                    if(str.contains("_")){
+                    	taintVal = "_" + str.split("_")[1];
+                    	str = str.split("_")[0];
+                    }
+                    
+                    
                     char[] chars = str.toCharArray();
 
                     int start = 0;
@@ -431,12 +453,59 @@ final class NativeString extends IdScriptableObject
                         start++;
                     }
                     int end = chars.length;
+                    
+                    
+                    int leftBoundary;
+                	int rightBoundary;
+                	String[] taintedRegionsArr;
+                	
+                	String newTaintVal = "_false";
+                	
+                    if(taintVal.contains("true")){
+                    	newTaintVal = "_true.";
+                    	
+                    	taintVal = taintVal.split("\\.")[1];
+                    	
+                    	if(taintVal.contains(",")){
+                    		taintedRegionsArr = taintVal.split(",");
+                    	
+	                    	for (String pair : taintedRegionsArr) {
+	                 			 String[] nums = pair.split("-");
+	                 			 leftBoundary = Integer.parseInt(nums[0]);
+	                 			 rightBoundary = Integer.parseInt(nums[1]);
+	                 			 
+	                 			 if(leftBoundary >= start){ newTaintVal += (leftBoundary - start) + "-" + (rightBoundary - start) + ",";}
+	                 			 else if(leftBoundary < start && rightBoundary >= start){newTaintVal += 0 + "-" + (rightBoundary - start) + ",";}
+	                    	}	
+                    	}
+                    	else{
+                    		 String[] nums = taintVal.split("-");
+                			 leftBoundary = Integer.parseInt(nums[0]);
+                			 rightBoundary = Integer.parseInt(nums[1]);
+                			 
+                			 if(leftBoundary >= start){ newTaintVal += (leftBoundary - start) + "-" + (rightBoundary - start) + ",";}
+                 			 else if(leftBoundary < start && rightBoundary >= start){newTaintVal += 0 + "-" + (rightBoundary - start) + ",";}
+                    	}
+                    	
+                    	if("_true.".equalsIgnoreCase(newTaintVal))
+                    		newTaintVal = "_false";
+                    	else
+                    		newTaintVal = newTaintVal.substring(0, (newTaintVal.length() - 1));
+                    }
 
-                    return str.substring(start, end);
+                    return str.substring(start, end)+newTaintVal;
                 }
                 case Id_trimRight:
                 {
                     String str = ScriptRuntime.toString(thisObj);
+                    
+                    String taintVal = "";                  
+                    if(str.contains("_")){
+                    	taintVal = "_" + str.split("_")[1];
+                    	str = str.split("_")[0];
+                    }
+                    
+                 
                     char[] chars = str.toCharArray();
 
                     int start = 0;
@@ -446,8 +515,49 @@ final class NativeString extends IdScriptableObject
                         end--;
                     }
 
-                    return str.substring(start, end);
+                	int leftBoundary;
+                	int rightBoundary;
+                	String[] taintedRegionsArr;
+                	
+                	String newTaintVal = "_false";
+                	
+                    if(taintVal.contains("true")){
+                    	newTaintVal = "_true.";
+                    	
+                    	taintVal = taintVal.split("\\.")[1];
+                    	
+                    	if(taintVal.contains(",")){
+                    		taintedRegionsArr = taintVal.split(",");
+                    	
+	                    	for (String pair : taintedRegionsArr) {
+	                 			 String[] nums = pair.split("-");
+	                 			 leftBoundary = Integer.parseInt(nums[0]);
+	                 			 rightBoundary = Integer.parseInt(nums[1]);
+	                 			 
+	                 			 if(leftBoundary < end && rightBoundary < end){ newTaintVal += leftBoundary + "-" + rightBoundary + ",";}
+	                 			 else if(leftBoundary < end && rightBoundary >= end){ newTaintVal += leftBoundary + "-" + (end - 1) + ",";}
+	                 			 else break;
+	                 				 
+	                    	}	
+                    	}
+                    	else{
+                    		 String[] nums = taintVal.split("-");
+                			 leftBoundary = Integer.parseInt(nums[0]);
+                			 rightBoundary = Integer.parseInt(nums[1]);
+                			 
+                			 if(leftBoundary < end && rightBoundary < end){ newTaintVal += leftBoundary + "-" + rightBoundary + ",";}
+                			 else if(leftBoundary < end && rightBoundary >= end){ newTaintVal += leftBoundary + "-" + (end - 1) + ",";}
+                    	}
+                    	
+                    	if("_true.".equalsIgnoreCase(newTaintVal))
+                    		newTaintVal = "_false";
+                    	else
+                    		newTaintVal = newTaintVal.substring(0, (newTaintVal.length() - 1));
+                    }
+                    
+                    return str.substring(start, end)+newTaintVal;
                 }
+                
                 case Id_normalize:
                 {
                     String formStr = ScriptRuntime.toString(args, 0);
@@ -498,6 +608,13 @@ final class NativeString extends IdScriptableObject
                                  String attribute, Object[] args)
     {
         String str = ScriptRuntime.toString(thisObj);
+        
+        String taintVal = "";
+        if(str.contains("_")){
+        	taintVal = "_" + str.split("_")[1];
+        	str = str.split("_")[0];
+        }
+        
         StringBuilder result = new StringBuilder();
         result.append('<');
         result.append(tag);
@@ -513,7 +630,7 @@ final class NativeString extends IdScriptableObject
         result.append("</");
         result.append(tag);
         result.append('>');
-        return result.toString();
+        return result.toString()+taintVal;
     }
 
     public CharSequence toCharSequence() {
@@ -611,8 +728,17 @@ final class NativeString extends IdScriptableObject
      */
     private static CharSequence js_substring(Context cx, CharSequence target,
                                        Object[] args)
-    {
-        int length = target.length();
+    {	
+    	String targetStr = target.toString();
+        String targetTaintVal = "";
+        String taintVal = "_false";
+        
+        if(targetStr.contains("_")){
+        	targetTaintVal = targetStr.split("_")[1];
+        	target = targetStr.split("_")[0];
+        }
+    	
+    	int length = target.length();
         double start = ScriptRuntime.toInteger(args, 0);
         double end;
 
@@ -642,7 +768,70 @@ final class NativeString extends IdScriptableObject
                 }
             }
         }
-        return target.subSequence((int)start, (int)end);
+        
+        int strStart = (int)start;
+        int strEnd = (int)end;
+        
+        if(strStart > strEnd){
+        	int temp = strStart;
+        	strStart = strEnd;
+        	strEnd = temp;
+        }
+        
+        if(targetTaintVal.contains("true")){
+        	taintVal = "_true.";
+        	String pos = (targetTaintVal.split("\\.")[1]); 
+      		String[] positions = null;
+      		int leftBoundary;
+      		int rightBoundary;
+      		
+      		if(pos.contains(",")){
+      			positions = pos.split(",");
+      			for (String pair : positions) {
+          			 String[] nums = pair.split("-");
+          			 leftBoundary = Integer.parseInt(nums[0]);
+          			 rightBoundary = Integer.parseInt(nums[1]);
+          			 
+          			 if(end > leftBoundary && start <= rightBoundary){		
+	          			 if(strStart >= leftBoundary && strEnd <= rightBoundary)    //taintedRegion is greater or equal than the substring
+	          				taintVal += 0 + "-" + (strEnd - 1 - strStart) + ",";
+	          			 else if(strStart < leftBoundary && strEnd > rightBoundary) //taintedRegion is smaller than the substring
+	          				taintVal += (leftBoundary - strStart) + "-" + (rightBoundary - strStart) + ",";
+	          			 else if(strStart < leftBoundary && strEnd < rightBoundary)
+	          				taintVal += (leftBoundary - strStart) + "-" + (strEnd - 1 - strStart) + ","; 
+	          			 else if(strStart > leftBoundary && strEnd > rightBoundary)
+	          				taintVal += 0 + "-" + (rightBoundary - strStart) + ",";
+          			 } 
+				 }	
+      				
+      			 if(taintVal.charAt(taintVal.length()-1) == ',')
+      				 taintVal = taintVal.substring(0,taintVal.length()-1);
+      		}	 
+      		else{
+      			 String[] nums = pos.split("-");
+      			 leftBoundary = Integer.parseInt(nums[0]);
+     			 rightBoundary = Integer.parseInt(nums[1]);
+     			 
+     			 if(end > leftBoundary && start <= rightBoundary){ 
+	     			 if(strStart >= leftBoundary && strEnd <= rightBoundary)    //taintedRegion is greater or equal than the substring
+	     				taintVal += 0 + "-" + (strEnd - 1 - strStart);
+	      			 else if(strStart < leftBoundary && strEnd > rightBoundary) //taintedRegion is smaller than the substring
+	      				taintVal += (leftBoundary - strStart) + "-" + (rightBoundary - strStart);
+	      			 else if(strStart < leftBoundary && strEnd < rightBoundary)
+	      				taintVal += (leftBoundary - strStart) + "-" + (strEnd - 1 - strStart); 
+	      			 else if(strStart > leftBoundary && strEnd > rightBoundary)
+	      				taintVal += 0 + "-" + (rightBoundary - strStart);
+     			 }
+      		}
+        	
+      		if(taintVal.length() == 6){
+      			taintVal = "_false";
+      		}
+        }
+        
+        //System.out.println("TAINTVAL in substring is : " + taintVal);
+        
+        return target.subSequence((int)start, (int)end) + taintVal;
     }
 
     int getLength() {
@@ -655,7 +844,16 @@ final class NativeString extends IdScriptableObject
     private static CharSequence js_substr(CharSequence target, Object[] args) {
         if (args.length < 1)
             return target;
-
+        
+        String targetStr = target.toString();
+        String targetTaintVal = "";
+        String taintVal = "_false";
+        
+        if(targetStr.contains("_")){
+        	targetTaintVal = "_" + targetStr.split("_")[1];
+        	target = targetStr.split("_")[0];
+        }
+        
         double begin = ScriptRuntime.toInteger(args[0]);
         double end;
         int length = target.length();
@@ -678,19 +876,151 @@ final class NativeString extends IdScriptableObject
             if (end > length)
                 end = length;
         }
-
-        return target.subSequence((int)begin, (int)end);
+        
+        int strStart = (int)begin;
+        int strEnd = (int)end;
+        
+        if(strStart > strEnd){
+        	int temp = strStart;
+        	strStart = strEnd;
+        	strEnd = temp;
+        }
+        
+        if(targetTaintVal.contains("true")){
+        	taintVal = "_true.";
+        	String pos = (targetTaintVal.split("\\.")[1]);
+	   		 
+      		String[] positions = null;
+      		int leftBoundary;
+      		int rightBoundary;
+      		if(pos.contains(",")){
+      			positions = pos.split(",");
+      			for (String pair : positions) {
+          			 String[] nums = pair.split("-");
+          			 leftBoundary = Integer.parseInt(nums[0]);
+          			 rightBoundary = Integer.parseInt(nums[1]);
+          			 
+          			 if(end > leftBoundary && begin <= rightBoundary){		
+	          			 if(strStart >= leftBoundary && strEnd <= rightBoundary)    //taintedRegion is greater or equal than the substring
+	          				taintVal += 0 + "-" + (strEnd - 1 - strStart) + ",";
+	          			 else if(strStart < leftBoundary && strEnd > rightBoundary) //taintedRegion is smaller than the substring
+	          				taintVal += (leftBoundary - strStart) + "-" + (rightBoundary - strStart) + ",";
+	          			 else if(strStart < leftBoundary && strEnd <= rightBoundary)
+	          				taintVal += (leftBoundary - strStart) + "-" + (strEnd - 1 - strStart) + ","; 
+	          			 else if(strStart >= leftBoundary && strEnd > rightBoundary)
+	          				taintVal += 0 + "-" + (rightBoundary - strStart) + ",";
+          			 } 
+				 }	
+      				
+      			 if(taintVal.charAt(taintVal.length()-1) == ',')
+      				 taintVal = taintVal.substring(0,taintVal.length()-1);
+      		}	 
+      		else{
+      			 String[] nums = pos.split("-");
+      			 leftBoundary = Integer.parseInt(nums[0]);
+     			 rightBoundary = Integer.parseInt(nums[1]);
+     			 
+     			 if(end > leftBoundary && begin <= rightBoundary){ 
+	     			 if(strStart >= leftBoundary && strEnd <= rightBoundary)    //taintedRegion is greater or equal than the substring
+	     				taintVal += 0 + "-" + (strEnd - 1 - strStart);
+	      			 else if(strStart < leftBoundary && strEnd > rightBoundary) //taintedRegion is smaller than the substring
+	      				taintVal += (leftBoundary - strStart) + "-" + (rightBoundary - strStart);
+	      			 else if(strStart < leftBoundary && strEnd < rightBoundary)
+	      				taintVal += (leftBoundary - strStart) + "-" + (strEnd - 1 - strStart); 
+	      			 else if(strStart > leftBoundary && strEnd > rightBoundary)
+	      				taintVal += 0 + "-" + (rightBoundary - strStart);
+     			 }
+      		}
+        	
+      		if(taintVal.length() == 6){
+      			taintVal = "_false";
+      		}
+        }
+        
+        System.out.println("TAINTVAL in substr is : " + taintVal);
+        
+        return target.subSequence((int)begin, (int)end) + taintVal;
     }
 
     /*
      * Python-esque sequence operations.
      */
     private static String js_concat(String target, Object[] args) {
+    	System.out.println("IN CONCAT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         int N = args.length;
+        String targetTaintValue = "false";
+        
+        if(target.contains("_")){
+        	targetTaintValue = target.split("_")[1];
+        	target = target.split("_")[0];
+        }
+        
         if (N == 0) { return target; }
+        
         else if (N == 1) {
             String arg = ScriptRuntime.toString(args[0]);
-            return target.concat(arg);
+            String argTaintValue = "false";
+            
+            if(arg.contains("_")){
+            	argTaintValue = arg.split("_")[1];
+            	arg = arg.split("_")[0];
+            }
+            
+            
+            String taintVal = "";
+            if(targetTaintValue.contains("true") || argTaintValue.contains("true")){
+            	taintVal = "_true";
+            	int len_targetTaintValue = target.length();
+            	
+            	if(targetTaintValue.contains("true")){
+            		taintVal += "." + targetTaintValue.split("\\.")[1];
+            	}
+            	else{
+            		taintVal += ".";
+            	}
+            	
+            	if(argTaintValue.contains("true")){
+            		 if(targetTaintValue.contains("true")){
+           			 	 taintVal += ",";
+               	 	 }
+            		 
+            		 String pos = (argTaintValue.split("\\.")[1]);
+            		 
+            		 String[] positions = null;
+            		 
+            		 if(pos.contains(",")){
+            			 positions = pos.split(",");
+            			 for (String pair : positions) {
+                			 String[] nums = pair.split("-");
+                			 taintVal += (Integer.parseInt(nums[0]) + len_targetTaintValue) + "-";
+                			 taintVal += (Integer.parseInt(nums[1]) + len_targetTaintValue) + ",";
+						 }	
+            			 
+            			 taintVal = taintVal.substring(0,taintVal.length() - 1);
+            		 }	 
+            		 else{
+            			 String[] nums = pos.split("-");
+            			 taintVal += (Integer.parseInt(nums[0]) + len_targetTaintValue) + "-";
+            			 taintVal += (Integer.parseInt(nums[1]) + len_targetTaintValue) + "";
+            		 }
+            		 
+            		 
+            	}
+            }
+            else{
+            	taintVal = "_false";
+            }
+            
+            
+//            String taintVal = "";
+//            if(targetTaintValue || argTaintValue){
+//            	taintVal = "_true";
+//            }
+//            else{
+//            	taintVal = "_false";
+//            }
+            
+            return target.concat(arg)+taintVal;
         }
 
         // Find total capacity for the final string to avoid unnecessary
@@ -714,6 +1044,15 @@ final class NativeString extends IdScriptableObject
     private static CharSequence js_slice(CharSequence target, Object[] args) {
         double begin = args.length < 1 ? 0 : ScriptRuntime.toInteger(args[0]);
         double end;
+        
+        String targetStr = target.toString();
+        String targetTaintVal = "";
+        
+        if(targetStr.contains("_")){
+        	targetTaintVal = "_" + targetStr.split("_")[1];
+        	target = targetStr.split("_")[0];
+        }
+        
         int length = target.length();
         if (begin < 0) {
             begin += length;
@@ -737,7 +1076,7 @@ final class NativeString extends IdScriptableObject
             if (end < begin)
                 end = begin;
         }
-        return target.subSequence((int) begin, (int) end);
+        return target.subSequence((int) begin, (int) end)+targetTaintVal;
     }
 
     private static String js_repeat(Context cx, Scriptable thisObj, IdFunctionObject f, Object[] args)
@@ -933,5 +1272,6 @@ final class NativeString extends IdScriptableObject
         ConstructorId_toLocaleLowerCase = -Id_toLocaleLowerCase;
 
     private CharSequence string;
+    private boolean taint = false;
 }
 

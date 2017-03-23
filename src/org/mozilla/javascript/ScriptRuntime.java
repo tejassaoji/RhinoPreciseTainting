@@ -1987,6 +1987,7 @@ public class ScriptRuntime {
                 if (withObj instanceof XMLObject) {
                     XMLObject xmlObject = (XMLObject)withObj;
                     if (xmlObject.has(cx, id)) {
+                    	//System.err.println("In bind() in ScriptRunTime.java.. 1..");
                         return xmlObject;
                     }
                     if (firstXMLObject == null) {
@@ -1994,6 +1995,7 @@ public class ScriptRuntime {
                     }
                 } else {
                     if (ScriptableObject.hasProperty(withObj, id)) {
+                    	//System.err.println("In bind() in ScriptRunTime.java.. 2..");
                         return withObj;
                     }
                 }
@@ -2005,6 +2007,7 @@ public class ScriptRuntime {
             }
             for (;;) {
                 if (ScriptableObject.hasProperty(scope, id)) {
+                	//System.err.println("In bind() in ScriptRunTime.java.. 3..");
                     return scope;
                 }
                 scope = parent;
@@ -2019,20 +2022,46 @@ public class ScriptRuntime {
             scope = checkDynamicScope(cx.topCallScope, scope);
         }
         if (ScriptableObject.hasProperty(scope, id)) {
+        	//System.err.println("In bind() in ScriptRunTime.java.. 4..");
             return scope;
         }
         // Nothing was found, but since XML objects always bind
         // return one if found
+        //System.err.println("In bind() in ScriptRunTime.java.. 5..");
         return firstXMLObject;
     }
-
+    
+    //setName(lhs, rhs, cx,frame.scope, stringReg)
     public static Object setName(Scriptable bound, Object value,
                                  Context cx, Scriptable scope, String id)
     {
         if (bound != null) {
             // TODO: we used to special-case XMLObject here, but putProperty
             // seems to work for E4X and it's better to optimize  the common case
-            ScriptableObject.putProperty(bound, id, value);
+        	if(value instanceof String || value instanceof NativeString || value instanceof ConsString){
+        		String valueStr = value.toString();
+            	if(valueStr.contains("_")){
+            		String arr[] = valueStr.split("_");
+            		ScriptableObject.putProperty(bound, id, arr[0]);
+            		
+//            		if("true".equalsIgnoreCase(arr[1]))
+            		if(arr[1].contains("true"))
+            			ScriptableObject.putProperty(bound, id, arr[1]);
+//            			ScriptableObject.putProperty(bound, id, "taint");
+            		else
+            			ScriptableObject.putProperty(bound, id, "untaint");
+            	}
+            	else{
+            		ScriptableObject.putProperty(bound, id, valueStr);
+                    ScriptableObject.putProperty(bound, id, "untaint");
+            	}
+        	}
+        	else{
+        		ScriptableObject.putProperty(bound, id, value);
+                ScriptableObject.putProperty(bound, id, "untaint");
+        	}
+        	
+            
         } else {
             // "newname = 7;", where 'newname' has not yet
             // been defined, creates a new property in the
@@ -2690,6 +2719,16 @@ public class ScriptRuntime {
         if (args.length < 1)
             return Undefined.instance;
         Object x = args[0];
+        
+        
+        if(x instanceof String || x instanceof NativeString || x instanceof ConsString){
+    		String argStr = x.toString();
+        	if(argStr.contains("_")){
+        		argStr = argStr.split("_")[0];
+        	}
+        	x = argStr;
+        }
+        
         if (!(x instanceof CharSequence)) {
             if (cx.hasFeature(Context.FEATURE_STRICT_MODE) ||
                 cx.hasFeature(Context.FEATURE_STRICT_EVAL))
