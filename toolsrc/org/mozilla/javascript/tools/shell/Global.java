@@ -11,6 +11,7 @@ import java.net.*;
 import java.nio.charset.Charset;
 import java.lang.reflect.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,7 +109,11 @@ public class Global extends ImporterTopLevel
             "sync",
             "toint32",
             "version",
-            "write"
+            "write",
+            "taint",
+            "isTainted",
+            "untaint",
+            "taintedRegions"
         };
         defineFunctionProperties(names, Global.class,
                                  ScriptableObject.DONTENUM);
@@ -191,7 +196,204 @@ public class Global extends ImporterTopLevel
     {
         return doPrint(args, funObj, true);
     }
+    
+    
+    /**
+     * Tejas Saoji
+     *
+     */
+    public static Object taint(Context cx, Scriptable thisObj,
+                               Object[] args, Function funObj)
+    {	
+    	/*for (int i=0; i < args.length; i++) {
+            // Convert the arbitrary JavaScript value into a string form.
+            String s = Context.toString(args[i]);
+            ScriptableObject.putProperty(thisObj, s, "taint");    
+            System.out.println(s + ".taint set to TRUE!");
+        }*/
+    	String result = null;
+    	
+    	for (int i=0; i < args.length; i++) {
+            // Convert the arbitrary JavaScript value into a string form.
+    		String str = null;
+    		
+    		if(args[i] instanceof String){
+    			str = args[i].toString();
+    			//System.out.println("taint(), String is :: " + str);
+    			if(str.contains("_")){
+    				str = str.split("_")[0];
+    			}
+    			result = str + "_true.0-"+(str.length() - 1);
+				//System.out.println("RESULT ::" + result);
+    		}
+        }
+    
+		return result;
+    }
+    /**
+     * Tejas Saoji.
+     */
 
+    
+    /**
+     * Tejas Saoji
+     *
+     */
+    public static Object isTainted(Context cx, Scriptable thisObj,
+                               Object[] args, Function funObj)
+    {	
+    	
+    	/*Object result = null;
+    	
+    	for (int i=0; i < args.length; i++) {
+            // Convert the arbitrary JavaScript value into a string form.
+            String s = Context.toString(args[i]);
+            result = ScriptableObject.getProperty(thisObj, s+"_isTainted?");       
+            //System.out.println(s + ".isTainted() returns " + result.toString().toUpperCase());
+            System.out.println("isTainted(" + s +") returns " + result.toString().toUpperCase());
+        }
+    	
+		return result;
+		*/
+    	
+    	Boolean result = false;
+    	
+    	for (int i=0; i < args.length; i++) {
+            // Convert the arbitrary JavaScript value into a string form.
+    		String str = null;
+    		String taintVal = "";
+    		
+    		if(args[i] instanceof String){
+    			str = args[i].toString();
+    			//System.out.println("isTainted(), String is ::" + str);
+    			if(str.contains("_")){
+    				taintVal = str.split("_")[1];
+    				if(taintVal.contains("true"))
+    					return true;
+    			}
+    		}
+        }
+    
+		return result;
+    }
+    /**
+     * Tejas Saoji.
+     */
+    
+    /**
+     * Tejas Saoji
+     *
+     */
+    public static Object untaint(Context cx, Scriptable thisObj,
+                               Object[] args, Function funObj)
+    {	
+    	/*for (int i=0; i < args.length; i++) {
+            // Convert the arbitrary JavaScript value into a string form.
+            String s = Context.toString(args[i]);
+            ScriptableObject.putProperty(thisObj, s, "untaint");   
+            System.out.println(s + ".taint set to FALSE!");
+        }
+    
+		return true;
+		*/
+    	
+    	String result = null;
+    	
+    	for (int i=0; i < args.length; i++) {
+            // Convert the arbitrary JavaScript value into a string form.
+    		String str = null;
+    		
+    		if(args[i] instanceof String){
+    			str = args[i].toString();
+    			if(str.contains("_")){
+    				str = str.split("_")[0];
+    			}
+    			result = str + "_false" +(str.length() - 1);
+				//System.out.println("RESULT ::" + result);
+    		}
+        }
+    
+		return result;
+    }
+    /**
+     * Tejas Saoji.
+     */
+    
+    
+    /**
+     * Tejas Saoji
+     *
+     */
+    public static Object taintedRegions(Context cx, Scriptable thisObj,
+	            			  Object[] args, Function funObj)
+	{	
+	
+		/*Object result = null;
+		
+		for (int i=0; i < args.length; i++) {
+			// Convert the arbitrary JavaScript value into a string form.
+			String s = Context.toString(args[i]);
+			result = ScriptableObject.getProperty(thisObj, s+"_taintedRegions");       
+			//System.out.println(s + ".taintedRegions() returns " + result.toString().toUpperCase());
+			//int[][] array = (int[][]) (Object) result;
+			//System.out.println("taintedRegions(" + s +") returns " + Arrays.deepToString(array));
+		}
+	
+		return result;
+		*/
+    	int[][] taintedRegions = null;
+    	for (int i=0; i < args.length; i++) {
+    		
+    		String arg = "";
+    		String taintVal = "";
+    		
+    		if(args[i] instanceof String)
+    			arg = args[i].toString();
+			if(arg.contains("_"))
+				taintVal = arg.split("_")[1];
+		
+    		
+	    	if(taintVal!="" && taintVal.contains("true")){
+	    		 
+	    		 String pos = (taintVal.split("\\.")[1]);
+	   		 
+	       		 String[] positions = null;
+	       		 
+	       		 if(pos.contains(",")){
+	       			 positions = pos.split(",");
+	       			 taintedRegions = new int[positions.length][2];
+	       			 int k = 0;
+	       			 for (String pair : positions) {
+	           			 String[] nums = pair.split("-");
+	           			 taintedRegions[k][0] = Integer.parseInt(nums[0]);
+	           			 taintedRegions[k++][1] = Integer.parseInt(nums[1]);
+					 }	
+	       		 }	 
+	       		 else{
+	       			 taintedRegions = new int[1][2];
+	       			 String[] nums = pos.split("-");
+	       			 taintedRegions[0][0] = Integer.parseInt(nums[0]);
+	       			 taintedRegions[0][1] = Integer.parseInt(nums[1]);
+	       		 }
+	       		 
+	       		 int[][] array = (int[][]) taintedRegions;
+	       		 System.out.println("taintedRegions(" + arg +") returns " + Arrays.deepToString(array));
+	       		
+	    		 return taintedRegions;
+	    	}
+	    	return new String("String not tainted");
+    	}
+    	
+    	return new String("String not tainted");
+	}
+    /**
+     * Tejas Saoji.
+     */
+    
+    
+    
+    
+    
     /**
      * Print just as in "print," but without the trailing newline.
      */
@@ -202,7 +404,8 @@ public class Global extends ImporterTopLevel
     }
 
     private static Object doPrint(Object[] args, Function funObj, boolean newline)
-    {
+    {	
+    	//System.out.println("in doPrint in Global.java");
         PrintStream out = getInstance(funObj).getOut();
         for (int i=0; i < args.length; i++) {
             if (i > 0)
@@ -475,6 +678,7 @@ public class Global extends ImporterTopLevel
 	            	resultString = Context.toString(result);
 	            }
     		} catch (RhinoException e) {
+          System.err.println("hey errorrrrrrr!!!!! G1");
                 ToolErrorReporter.reportException(cx.getErrorReporter(), e);
     		} finally {
     		    this.setOut(savedOut);
@@ -1276,4 +1480,3 @@ class PipeThread extends Thread {
     private InputStream from;
     private OutputStream to;
 }
-
