@@ -1515,6 +1515,13 @@ public class ScriptRuntime {
     public static Object getObjectProp(Object obj, String property,
                                        Context cx, Scriptable scope)
     {
+    	/*String str = "";
+    	if(obj instanceof String || obj instanceof NativeString || obj instanceof ConsString){
+    		str = obj.toString();
+    		str = str.substring(0,str.lastIndexOf("_"));
+    		obj = str;
+    	}*/
+    	
         Scriptable sobj = toObjectOrNull(cx, obj, scope);
         if (sobj == null) {
             throw undefReadError(obj, property);
@@ -1525,7 +1532,6 @@ public class ScriptRuntime {
     public static Object getObjectProp(Scriptable obj, String property,
                                        Context cx)
     {
-
         Object result = ScriptableObject.getProperty(obj, property);
         if (result == Scriptable.NOT_FOUND) {
             if (cx.hasFeature(Context.FEATURE_STRICT_MODE)) {

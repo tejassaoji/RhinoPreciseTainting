@@ -937,7 +937,7 @@ final class NativeString extends IdScriptableObject
       		}
         }
         
-        System.out.println("TAINTVAL in substr is : " + taintVal);
+        //System.out.println("in NativeString.java .... TAINTVAL in substr is : " + taintVal);
         
         return target.subSequence((int)begin, (int)end) + taintVal;
     }
@@ -946,7 +946,7 @@ final class NativeString extends IdScriptableObject
      * Python-esque sequence operations.
      */
     private static String js_concat(String target, Object[] args) {
-    	System.out.println("IN CONCAT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    	//System.out.println("IN CONCAT in NativeString.java");
         int N = args.length;
         String targetTaintValue = "false";
         

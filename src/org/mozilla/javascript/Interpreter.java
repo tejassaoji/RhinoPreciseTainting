@@ -191,7 +191,7 @@ public final class Interpreter extends Icode implements Evaluator
                           String encodedSource,
                           boolean returnFunction)
     {
-        System.err.println("In compile function in Interpreter.java!!!!!");
+        //System.err.println("In compile function in Interpreter.java!!!!!");
         CodeGenerator cgen = new CodeGenerator();
         itsData = cgen.compile(compilerEnv, tree, encodedSource, returnFunction);
         return itsData;
@@ -883,7 +883,7 @@ public final class Interpreter extends Icode implements Evaluator
         // throwable holds exception object to rethrow or catch
         // It is also used for continuation restart in which case
         // it holds ContinuationJump
-    	System.err.println("in interpretLoop() in SecurityController.java!!");
+    	//System.err.println("in interpretLoop() in SecurityController.java!!");
         final Object DBL_MRK = DOUBLE_MARK;
         final Object undefined = Undefined.instance;
 
@@ -1126,7 +1126,9 @@ switch (op) {
     	if(stack[stackTop] instanceof String || stack[stackTop] instanceof NativeString || stack[stackTop] instanceof ConsString){
 	    	String result = stack[stackTop].toString();
 	    	if (result.contains("_"))
-	    		frame.result = result.substring(0,result.indexOf("_"));
+	    		frame.result = result.substring(0,result.lastIndexOf("_"));
+	    	else
+	    		frame.result = result;
     	}
     	else
     		frame.result = stack[stackTop];
@@ -1162,7 +1164,7 @@ switch (op) {
         --stackTop;
         break Loop;
     case Token.RETURN_RESULT :
-    	System.err.println("RETURN_RESULT in interpreterloop in interpreter.java");
+    	//System.err.println("RETURN_RESULT in interpreterloop in interpreter.java");
         break Loop;
     case Icode_RETUNDEF :
         frame.result = undefined;
@@ -1214,12 +1216,12 @@ switch (op) {
                               !stack_boolean(frame, stackTop));
         continue Loop;
     case Token.BINDNAME :
-    	System.err.println("BINDNAME in interpreterloop in interpreter.java");
+    	//System.err.println("BINDNAME in interpreterloop in interpreter.java");
         stack[++stackTop] = ScriptRuntime.bind(cx, frame.scope, stringReg);
         continue Loop;
     case Token.STRICT_SETNAME:
     case Token.SETNAME : {
-    	System.err.println("SETNAME in interpreterloop in interpreter.java");
+    	//System.err.println("SETNAME in interpreterloop in interpreter.java");
         Object rhs = stack[stackTop];
         if (rhs == DBL_MRK) rhs = ScriptRuntime.wrapNumber(sDbl[stackTop]);
         --stackTop;
@@ -1907,11 +1909,11 @@ switch (op) {
         frame.pc += 4;
         continue Loop;
     case Icode_REG_STR_C0:
-    	System.err.println("Icode_REG_STR_C0 in interpreterloop in interpreter.java,  stringReg is :: " + stringReg);
+    	//System.err.println("Icode_REG_STR_C0 in interpreterloop in interpreter.java,  stringReg is :: " + stringReg);
         stringReg = strings[0];
         continue Loop;
     case Icode_REG_STR_C1:
-    	System.err.println("Icode_REG_STR_C1 in interpreterloop in interpreter.java");
+    	//System.err.println("Icode_REG_STR_C1 in interpreterloop in interpreter.java");
         stringReg = strings[1];
         continue Loop;
     case Icode_REG_STR_C2:
@@ -2374,7 +2376,7 @@ switch (op) {
                                 double[] sDbl, int stackTop,
                                 Object[] vars, double[] varDbls,
                                 int[] varAttributes, int indexReg) {
-    	System.err.println("In doSetVar() in Interpreter.java");
+    	//System.err.println("In doSetVar() in Interpreter.java");
         if (!frame.useActivation) {
             if ((varAttributes[indexReg] & ScriptableObject.READONLY) == 0) {
                 vars[indexReg] = stack[stackTop];
@@ -3152,12 +3154,13 @@ switch (op) {
                 String rightstr = "false";
                 
                 if(lString.contains("_")){
+                	//System.out.println("%%%%%#$#$#$#$##$#$ lString in Interpreter.java: " + lString);
                 	leftstr = lString.split("_")[1];
                 	lString = lString.split("_")[0];
                 }
                 
                 if(rString.contains("_")){
-                	System.out.println("%%%%%#$#$#$#$##$#$ rString : " + rString);
+                	//System.out.println("%%%%%#$#$#$#$##$#$ rString in Interpreter.java: " + rString);
                 	rightstr = rString.split("_")[1];
                 	rString = rString.split("_")[0];
                 }
@@ -3207,6 +3210,7 @@ switch (op) {
                 }
                 
                 stack[stackTop] = new ConsString(lString, rString+taintVal);
+                //stack[stackTop] = lString.concat(rString)+taintVal;
             } else {
                 double lDbl = (lhs instanceof Number)
                     ? ((Number)lhs).doubleValue() : ScriptRuntime.toNumber(lhs);

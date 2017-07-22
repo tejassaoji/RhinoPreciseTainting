@@ -308,7 +308,7 @@ public class Global extends ImporterTopLevel
     			if(str.contains("_")){
     				str = str.split("_")[0];
     			}
-    			result = str + "_false" +(str.length() - 1);
+    			result = str + "_false";
 				//System.out.println("RESULT ::" + result);
     		}
         }
@@ -381,10 +381,10 @@ public class Global extends ImporterTopLevel
 	       		
 	    		 return taintedRegions;
 	    	}
-	    	return new String("String not tainted");
+	    	return new String("String not tainted!");
     	}
     	
-    	return new String("String not tainted");
+    	return new String("String not tainted!");
 	}
     /**
      * Tejas Saoji.
@@ -678,7 +678,7 @@ public class Global extends ImporterTopLevel
 	            	resultString = Context.toString(result);
 	            }
     		} catch (RhinoException e) {
-          System.err.println("hey errorrrrrrr!!!!! G1");
+    			//System.err.println("hey errorrrrrrr!!!!! G1 in Global.java");
                 ToolErrorReporter.reportException(cx.getErrorReporter(), e);
     		} finally {
     		    this.setOut(savedOut);
